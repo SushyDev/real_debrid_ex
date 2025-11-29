@@ -61,6 +61,7 @@ defmodule RealDebrid.Api.Torrents do
           total_count =
             headers
             |> get_header("x-total-count")
+            |> Enum.at(0)
             |> parse_integer(0)
 
           {:ok,
@@ -151,9 +152,9 @@ defmodule RealDebrid.Api.Torrents do
   end
 
   defp get_header(headers, key) do
-    case List.keyfind(headers, key, 0) do
-      {_, value} -> value
-      nil -> nil
+    case Map.fetch(headers, key) do
+      {:ok, value} -> value
+      :error -> nil
     end
   end
 

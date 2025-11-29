@@ -1,1 +1,4 @@
 .direnv
+_build
+.env
+deps

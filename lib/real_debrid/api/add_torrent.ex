@@ -16,9 +16,8 @@ defmodule RealDebrid.Api.AddTorrent do
   ## Parameters
 
     - `client` - The Real-Debrid client
-    - `torrent_data` - Binary content of the torrent file
+    - `torrent_data` - Binary content of the torrent file (must be raw binary, not a stream)
     - `opts` - Optional keyword list:
-      - `:filename` - The filename (defaults to "upload.torrent")
       - `:host` - The host to use (optional)
 
   ## Returns
@@ -27,21 +26,18 @@ defmodule RealDebrid.Api.AddTorrent do
     - `{:error, reason}` on failure
   """
   @spec add(Client.t(), binary(), keyword()) :: {:ok, response()} | {:error, term()}
-  def add(%Client{} = client, torrent_data, opts \\ []) do
-    filename = Keyword.get(opts, :filename, "upload.torrent")
+  def add(%Client{} = client, torrent_data, opts \\ []) when is_binary(torrent_data) do
     host = Keyword.get(opts, :host)
 
-    multipart = [
-      {:file, torrent_data, filename: filename, content_type: "application/x-bittorrent"}
-    ]
+    # Build params for query string
+    params = if host, do: %{host: host}, else: %{}
 
-    multipart =
-      case host do
-        nil -> multipart
-        h -> multipart ++ [{"host", h}]
-      end
-
-    case Client.put_multipart(client, "/torrents/addTorrent", multipart) do
+    # Send torrent file as raw body with application/x-bittorrent content-type
+    case Client.put(client, "/torrents/addTorrent",
+           body: torrent_data,
+           params: params,
+           headers: [{"content-type", "application/x-bittorrent"}]
+         ) do
       {:ok, body} ->
         {:ok,
          %{

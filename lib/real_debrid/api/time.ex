@@ -15,15 +15,10 @@ defmodule RealDebrid.Api.Time do
   """
   @spec get(Client.t()) :: {:ok, String.t()} | {:error, term()}
   def get(%Client{} = client) do
-    case Client.get(client, "/time") do
-      {:ok, body, _headers} when is_binary(body) ->
-        {:ok, body}
-
-      {:ok, body, _headers} ->
-        {:ok, to_string(body)}
-
-      {:error, reason} ->
-        {:error, reason}
+    case Client.get(client, "/time", decode_body: false) do
+      {:ok, body, _headers} when is_binary(body) -> {:ok, body}
+      {:ok, body, _headers} -> {:ok, to_string(body)}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -37,15 +32,10 @@ defmodule RealDebrid.Api.Time do
   """
   @spec get_iso(Client.t()) :: {:ok, String.t()} | {:error, term()}
   def get_iso(%Client{} = client) do
-    case Client.get(client, "/time/iso") do
-      {:ok, body, _headers} when is_binary(body) ->
-        {:ok, body}
-
-      {:ok, body, _headers} ->
-        {:ok, to_string(body)}
-
-      {:error, reason} ->
-        {:error, reason}
+    case Client.get(client, "/time/iso", decode_body: false) do
+      {:ok, body, _headers} when is_binary(body) -> {:ok, body}
+      {:ok, body, _headers} -> {:ok, to_string(body)}
+      {:error, reason} -> {:error, reason}
     end
   end
 end

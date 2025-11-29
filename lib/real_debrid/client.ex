@@ -62,11 +62,13 @@ defmodule RealDebrid.Client do
   @doc """
   Makes a GET request to the API.
   """
-  @spec get(t(), String.t(), keyword()) :: {:ok, map() | list() | String.t(), list()} | {:error, term()}
+  @spec get(t(), String.t(), keyword()) ::
+          {:ok, map() | list() | String.t(), list()} | {:error, term()}
   def get(%__MODULE__{req: req}, endpoint, opts \\ []) do
     params = Keyword.get(opts, :params, %{})
+    decode_body = Keyword.get(opts, :decode_body, true)
 
-    case Req.get(req, url: endpoint, params: params) do
+    case Req.get(req, url: endpoint, params: params, decode_body: decode_body) do
       {:ok, response} ->
         status = response.status
         body = response.body
@@ -92,18 +94,9 @@ defmodule RealDebrid.Client do
     expected_status = Keyword.get(opts, :expected_status, 200)
 
     case Req.post(req, url: endpoint, form: form) do
-      {:ok, response} ->
-        status = response.status
-        body = response.body
-
-        if status == expected_status or (expected_status == 204 and status == 204) do
-          {:ok, body}
-        else
-          {:error, handle_status_code(status)}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, %Req.Response{status: ^expected_status} = response} -> {:ok, response.body}
+      {:ok, response} -> {:error, handle_status_code(response.status)}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -113,15 +106,33 @@ defmodule RealDebrid.Client do
   @spec put_multipart(t(), String.t(), list()) :: {:ok, map()} | {:error, term()}
   def put_multipart(%__MODULE__{req: req}, endpoint, multipart) do
     case Req.put(req, url: endpoint, form_multipart: multipart) do
-      {:ok, response} ->
-        status = response.status
-        body = response.body
+      {:ok, %Req.Response{status: status} = response} when status in [200, 201, 204] ->
+        {:ok, response.body}
 
-        if status in [200, 201, 204] do
-          {:ok, body}
-        else
-          {:error, handle_status_code(status)}
-        end
+      {:ok, %Req.Response{status: status, body: body}} ->
+        {:error, body <> handle_status_code(status)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Makes a PUT request to the API with raw binary body.
+  """
+  @spec put(t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def put(%__MODULE__{req: req}, endpoint, opts \\ []) do
+    body = Keyword.get(opts, :body, "")
+    params = Keyword.get(opts, :params, %{})
+    headers = Keyword.get(opts, :headers, [])
+
+    case Req.put(req, url: endpoint, body: body, params: params, headers: headers) do
+      {:ok, %Req.Response{status: status} = response} when status in [200, 201, 204] ->
+        {:ok, response.body}
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        IO.inspect(body)
+        {:error, handle_status_code(status)}
 
       {:error, reason} ->
         {:error, reason}
@@ -134,17 +145,12 @@ defmodule RealDebrid.Client do
   @spec delete(t(), String.t()) :: :ok | {:error, term()}
   def delete(%__MODULE__{req: req}, endpoint) do
     case Req.delete(req, url: endpoint) do
-      {:ok, response} ->
-        status = response.status
+      {:ok, %Req.Response{status: status}} when status in [200, 204] -> :ok
+      {:ok, %Req.Response{status: status, body: body}} ->
+        IO.inspect(body)
+        {:error, handle_status_code(status)}
 
-        if status == 204 do
-          :ok
-        else
-          {:error, handle_status_code(status)}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+      {:error, reason} -> {:error, reason}
     end
   end
 

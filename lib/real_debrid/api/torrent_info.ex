@@ -47,11 +47,8 @@ defmodule RealDebrid.Api.TorrentInfo do
   @spec get(Client.t(), String.t()) :: {:ok, torrent_info()} | {:error, term()}
   def get(%Client{} = client, id) do
     case Client.get(client, "/torrents/info/#{id}") do
-      {:ok, body, _headers} ->
-        {:ok, parse_torrent_info(body)}
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, body, _headers} -> {:ok, parse_torrent_info(body)}
+      {:error, reason} -> {:error, reason}
     end
   end
 

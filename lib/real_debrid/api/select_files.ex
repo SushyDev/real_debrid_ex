@@ -24,11 +24,8 @@ defmodule RealDebrid.Api.SelectFiles do
     form = %{"files" => file_ids}
 
     case Client.post(client, "/torrents/selectFiles/#{torrent_id}", form: form, expected_status: 204) do
-      {:ok, _body} ->
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, _body} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 end
