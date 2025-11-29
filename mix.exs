@@ -3,14 +3,14 @@ defmodule RealDebrid.MixProject do
 
   def project do
     [
-      app: :real_debrid,
+      app: :real_debrid_ex,
       version: "0.1.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: "Elixir client for the Real-Debrid API",
       package: package(),
-      source_url: "https://github.com/sushydev/real_debrid_go"
+      source_url: "https://github.com/sushydev/real_debrid_ex"
     ]
   end
 
@@ -30,7 +30,7 @@ defmodule RealDebrid.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/sushydev/real_debrid_go"}
+      links: %{"GitHub" => "https://github.com/sushydev/real_debrid_ex"}
     ]
   end
 end
