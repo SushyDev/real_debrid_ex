@@ -22,15 +22,17 @@ defmodule RealDebrid.MixProject do
 
   defp deps do
     [
-      {:req, "~> 0.4"},
+      {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/sushydev/real_debrid_ex"}
+      links: %{"GitHub" => "https://github.com/sushydev/real_debrid_ex"},
+      files: ~w(lib mix.exs README.md)
     ]
   end
 end
