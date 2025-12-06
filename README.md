@@ -21,14 +21,47 @@ end
 ```elixir
 # Create a client with your API token
 client = RealDebrid.Client.new("your_api_token")
+
+# With custom rate limit (1-250 requests per minute)
+client = RealDebrid.Client.new("your_api_token", 
+  max_requests_per_minute: 100
+)
+
+# With custom retry configuration
+client = RealDebrid.Client.new("your_api_token", 
+  max_retries: 5,      # Default: 3
+  retry_delay: 2000    # Base delay in ms, default: 1000
+)
+
+# Disable proactive rate limiting (only use reactive backoff)
+client = RealDebrid.Client.new("your_api_token", rate_limiter: false)
 ```
+
+### Rate Limiting & Automatic Backoff
+
+The Real-Debrid API is limited to **250 requests per minute**. This library implements a **two-layer rate limiting strategy**:
+
+#### 1. Proactive Rate Limiting (Default: Enabled)
+- **Token bucket algorithm** tracks requests per minute
+- **Automatically waits** before sending requests that would exceed the limit
+- **Configurable**: Set `max_requests_per_minute` (1-250) when creating client
+- **Prevents 429 errors** before they happen
+- **Zero overhead**: Works transparently without code changes
+
+#### 2. Reactive Backoff (Always Enabled)
+- **Automatic retries**: Failed requests due to rate limiting are automatically retried
+- **Exponential backoff**: Delay doubles with each retry attempt (1s, 2s, 4s, 8s...)
+- **Jitter**: Random delay added to prevent thundering herd
+- **Configurable**: Customize `max_retries` and `retry_delay` when creating client
+
+Both systems work together seamlessly - proactive limiting prevents most 429 errors, while reactive backoff handles any that slip through (e.g., from other API clients sharing the same token).
+
+You can disable proactive rate limiting with `rate_limiter: false` if you prefer to rely solely on reactive backoff.
 
 ### User Information
 
 ```elixir
 {:ok, user} = RealDebrid.Api.User.get(client)
-IO.inspect(user.username)
-IO.inspect(user.premium)
 ```
 
 ### Torrents
@@ -58,7 +91,6 @@ IO.inspect(user.premium)
 ```elixir
 # Unrestrict a single link
 {:ok, response} = RealDebrid.Api.UnrestrictLink.unrestrict(client, "https://...")
-IO.inspect(response.download)
 
 # Check link support
 {:ok, check} = RealDebrid.Api.Unrestrict.check(client, "https://...")
