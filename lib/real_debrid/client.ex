@@ -70,10 +70,11 @@ defmodule RealDebrid.Client do
       client = RealDebrid.Client.new("your_api_token", max_retries: 5, retry_delay: 2000)
       client = RealDebrid.Client.new("your_api_token", rate_limiter: false)
 
-      # Share a rate limiter across multiple clients
+      # Reuse a rate limiter if you need multiple clients with the same token
+      # (Note: Rate limits are per token, so don't share across different tokens)
       {:ok, limiter} = RealDebrid.RateLimiter.start_link()
-      client1 = RealDebrid.Client.new("token1", rate_limiter: limiter)
-      client2 = RealDebrid.Client.new("token2", rate_limiter: limiter)
+      client1 = RealDebrid.Client.new("same_token", rate_limiter: limiter)
+      client2 = RealDebrid.Client.new("same_token", rate_limiter: limiter)
   """
   @spec new(String.t(), keyword()) :: t()
   def new(token, opts \\ []) do
