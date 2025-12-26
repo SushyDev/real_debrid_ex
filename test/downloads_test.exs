@@ -39,12 +39,7 @@ defmodule RealDebrid.Api.DownloadsTest do
     end
   end
 
-  describe "delete/2" do
-    test "deletes a download" do
-      # This test would actually delete a download, so we skip it
-      # unless there's a specific test download ID
-      # Just verify the module exists
-      assert is_atom(RealDebrid.Api.Downloads)
-    end
-  end
+  # Note: The delete/2 function would actually delete a download and modify state.
+  # Tests for this functionality would need to be run in an integration test environment
+  # with proper test data setup and teardown.
 end

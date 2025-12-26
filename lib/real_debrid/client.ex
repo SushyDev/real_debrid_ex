@@ -130,8 +130,11 @@ defmodule RealDebrid.Client do
   """
   @spec stop(t()) :: :ok
   def stop(%__MODULE__{rate_limiter: limiter}) when is_pid(limiter) do
-    if Process.alive?(limiter) do
+    try do
       GenServer.stop(limiter)
+    catch
+      :exit, {:noproc, _} ->
+        :ok
     end
 
     :ok

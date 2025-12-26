@@ -32,8 +32,12 @@ defmodule RealDebrid.Api.TrafficTest do
     test "accepts date range parameters" do
       client = RealDebrid.Client.new(System.get_env("REAL_DEBRID_TOKEN"))
 
+      today = Date.utc_today()
+      start_date = today |> Date.add(-30) |> Date.to_iso8601()
+      end_date = today |> Date.to_iso8601()
+
       assert {:ok, _} =
-               RealDebrid.Api.Traffic.get_details(client, start: "2024-01-01", end: "2024-01-31")
+               RealDebrid.Api.Traffic.get_details(client, start: start_date, end: end_date)
     end
   end
 end

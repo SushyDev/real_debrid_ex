@@ -16,7 +16,7 @@ defmodule RealDebrid.Api.InstantAvailabilityTest do
 
         {:error, "Permission denied (account locked, not premium) or Infringing torrent"} ->
           # Expected for non-premium accounts
-          assert true
+          :ok
       end
     end
   end
