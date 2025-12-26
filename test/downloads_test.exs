@@ -41,8 +41,6 @@ defmodule RealDebrid.Api.DownloadsTest do
 
   describe "delete/2" do
     test "deletes a download" do
-      client = RealDebrid.Client.new(System.get_env("REAL_DEBRID_TOKEN"))
-
       # This test would actually delete a download, so we skip it
       # unless there's a specific test download ID
       # Just verify the module exists
