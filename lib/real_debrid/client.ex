@@ -37,15 +37,14 @@ defmodule RealDebrid.Client do
   @host "https://api.real-debrid.com"
   @path "/rest/1.0"
 
-  defstruct [:token, :host, :path, :req, :rate_limiter, :owns_rate_limiter]
+  defstruct [:token, :host, :path, :req, :rate_limiter]
 
   @type t :: %__MODULE__{
           token: String.t(),
           host: String.t(),
           path: String.t(),
           req: term(),
-          rate_limiter: pid() | nil,
-          owns_rate_limiter: boolean()
+          rate_limiter: pid() | nil
         }
 
   @doc """
@@ -58,7 +57,7 @@ defmodule RealDebrid.Client do
       - `:host` - API host (defaults to "https://api.real-debrid.com")
       - `:path` - API path (defaults to "/rest/1.0")
       - `:max_requests_per_minute` - Maximum requests per minute (defaults to 250, range: 1-250)
-      - `:rate_limiter` - Enable/disable rate limiter (defaults to true, set to false to disable, or pass an existing PID)
+      - `:rate_limiter` - Enable/disable rate limiter (defaults to true, set to false to disable)
       - `:max_retries` - Maximum number of retry attempts for rate-limited requests (defaults to 3)
       - `:retry_delay` - Base delay in milliseconds for exponential backoff (defaults to 1000)
 
@@ -70,11 +69,12 @@ defmodule RealDebrid.Client do
       client = RealDebrid.Client.new("your_api_token", max_retries: 5, retry_delay: 2000)
       client = RealDebrid.Client.new("your_api_token", rate_limiter: false)
 
-      # Reuse a rate limiter if you need multiple clients with the same token
-      # (Note: Rate limits are per token, so don't share across different tokens)
-      {:ok, limiter} = RealDebrid.RateLimiter.start_link()
-      client1 = RealDebrid.Client.new("same_token", rate_limiter: limiter)
-      client2 = RealDebrid.Client.new("same_token", rate_limiter: limiter)
+  ## Note on Rate Limiting
+
+  Since rate limits are per-token in the Real-Debrid API, each client creates
+  its own rate limiter. If you need to make requests with the same token from
+  multiple places in your application, consider creating a single client and
+  passing it around rather than creating multiple clients with the same token.
   """
   @spec new(String.t(), keyword()) :: t()
   def new(token, opts \\ []) do
@@ -95,23 +95,16 @@ defmodule RealDebrid.Client do
         retry_log_level: :warning
       )
 
-    # Handle rate limiter configuration
-    {rate_limiter, owns_rate_limiter} =
-      case rate_limiter_opt do
-        # Use existing rate limiter
-        pid when is_pid(pid) ->
-          {pid, false}
+    # Create rate limiter if enabled
+    # Each client gets its own rate limiter since limits are per-token
+    rate_limiter =
+      if rate_limiter_opt do
+        {:ok, limiter} =
+          RealDebrid.RateLimiter.start_link(max_requests: max_requests_per_minute)
 
-        # Create new rate limiter
-        true ->
-          {:ok, limiter} =
-            RealDebrid.RateLimiter.start_link(max_requests: max_requests_per_minute)
-
-          {limiter, true}
-
-        # Disable rate limiter
-        false ->
-          {nil, false}
+        limiter
+      else
+        nil
       end
 
     %__MODULE__{
@@ -119,30 +112,24 @@ defmodule RealDebrid.Client do
       host: host,
       path: path,
       req: req,
-      rate_limiter: rate_limiter,
-      owns_rate_limiter: owns_rate_limiter
+      rate_limiter: rate_limiter
     }
   end
 
   @doc """
-  Stops the rate limiter if it's owned by this client.
+  Stops the rate limiter associated with this client.
 
   This is important for resource cleanup when you're done with a client.
-  If the rate limiter is shared (passed as a PID), this does nothing.
+  Each client owns its own rate limiter, so this will stop it.
 
   ## Examples
 
       client = RealDebrid.Client.new("token")
       # ... use client ...
       RealDebrid.Client.stop(client)
-
-      # Shared rate limiter is not stopped
-      {:ok, limiter} = RealDebrid.RateLimiter.start_link()
-      client = RealDebrid.Client.new("token", rate_limiter: limiter)
-      RealDebrid.Client.stop(client)  # limiter is still running
   """
   @spec stop(t()) :: :ok
-  def stop(%__MODULE__{rate_limiter: limiter, owns_rate_limiter: true}) when is_pid(limiter) do
+  def stop(%__MODULE__{rate_limiter: limiter}) when is_pid(limiter) do
     if Process.alive?(limiter) do
       GenServer.stop(limiter)
     end
