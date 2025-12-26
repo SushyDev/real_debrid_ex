@@ -4,6 +4,7 @@ defmodule RealDebrid.Api.Downloads do
   """
 
   alias RealDebrid.Client
+  alias RealDebrid.Helpers
 
   @type download :: %{
           id: String.t(),
@@ -35,13 +36,14 @@ defmodule RealDebrid.Api.Downloads do
     - `{:ok, %{downloads: downloads, total_count: count}}` on success
     - `{:error, reason}` on failure
   """
-  @spec get(Client.t(), keyword()) :: {:ok, %{downloads: [download()], total_count: integer()}} | {:error, term()}
+  @spec get(Client.t(), keyword()) ::
+          {:ok, %{downloads: [download()], total_count: integer()}} | {:error, term()}
   def get(%Client{} = client, opts \\ []) do
     params =
       []
-      |> maybe_add_param(:limit, Keyword.get(opts, :limit))
-      |> maybe_add_param(:page, Keyword.get(opts, :page))
-      |> maybe_add_param(:offset, Keyword.get(opts, :offset))
+      |> Helpers.maybe_add_param(:limit, Keyword.get(opts, :limit))
+      |> Helpers.maybe_add_param(:page, Keyword.get(opts, :page))
+      |> Helpers.maybe_add_param(:offset, Keyword.get(opts, :offset))
       |> Map.new()
 
     case Client.get(client, "/downloads", params: params) do
@@ -50,8 +52,8 @@ defmodule RealDebrid.Api.Downloads do
 
         total_count =
           headers
-          |> get_header("x-total-count")
-          |> parse_integer(0)
+          |> Helpers.get_header("x-total-count")
+          |> Helpers.parse_integer(0)
 
         {:ok, %{downloads: downloads, total_count: total_count}}
 
@@ -88,23 +90,4 @@ defmodule RealDebrid.Api.Downloads do
       type: data["type"]
     }
   end
-
-  defp maybe_add_param(params, _key, nil), do: params
-  defp maybe_add_param(params, key, value), do: [{key, value} | params]
-
-  defp get_header(headers, key) do
-    case List.keyfind(headers, key, 0) do
-      {_, value} -> value
-      nil -> nil
-    end
-  end
-
-  defp parse_integer(nil, default), do: default
-  defp parse_integer(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, _} -> int
-      :error -> default
-    end
-  end
-  defp parse_integer(value, _default) when is_integer(value), do: value
 end

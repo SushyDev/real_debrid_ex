@@ -37,14 +37,15 @@ defmodule RealDebrid.Client do
   @host "https://api.real-debrid.com"
   @path "/rest/1.0"
 
-  defstruct [:token, :host, :path, :req, :rate_limiter]
+  defstruct [:token, :host, :path, :req, :rate_limiter, :owns_rate_limiter]
 
   @type t :: %__MODULE__{
           token: String.t(),
           host: String.t(),
           path: String.t(),
           req: term(),
-          rate_limiter: pid() | nil
+          rate_limiter: pid() | nil,
+          owns_rate_limiter: boolean()
         }
 
   @doc """
@@ -57,7 +58,7 @@ defmodule RealDebrid.Client do
       - `:host` - API host (defaults to "https://api.real-debrid.com")
       - `:path` - API path (defaults to "/rest/1.0")
       - `:max_requests_per_minute` - Maximum requests per minute (defaults to 250, range: 1-250)
-      - `:rate_limiter` - Enable/disable rate limiter (defaults to true, set to false to disable)
+      - `:rate_limiter` - Enable/disable rate limiter (defaults to true, set to false to disable, or pass an existing PID)
       - `:max_retries` - Maximum number of retry attempts for rate-limited requests (defaults to 3)
       - `:retry_delay` - Base delay in milliseconds for exponential backoff (defaults to 1000)
 
@@ -68,6 +69,11 @@ defmodule RealDebrid.Client do
       client = RealDebrid.Client.new("your_api_token", max_requests_per_minute: 100)
       client = RealDebrid.Client.new("your_api_token", max_retries: 5, retry_delay: 2000)
       client = RealDebrid.Client.new("your_api_token", rate_limiter: false)
+
+      # Share a rate limiter across multiple clients
+      {:ok, limiter} = RealDebrid.RateLimiter.start_link()
+      client1 = RealDebrid.Client.new("token1", rate_limiter: limiter)
+      client2 = RealDebrid.Client.new("token2", rate_limiter: limiter)
   """
   @spec new(String.t(), keyword()) :: t()
   def new(token, opts \\ []) do
@@ -75,7 +81,7 @@ defmodule RealDebrid.Client do
     path = Keyword.get(opts, :path, @path)
     max_retries = Keyword.get(opts, :max_retries, 3)
     retry_delay = Keyword.get(opts, :retry_delay, 1000)
-    enable_rate_limiter = Keyword.get(opts, :rate_limiter, true)
+    rate_limiter_opt = Keyword.get(opts, :rate_limiter, true)
     max_requests_per_minute = Keyword.get(opts, :max_requests_per_minute, 250)
 
     req =
@@ -88,13 +94,23 @@ defmodule RealDebrid.Client do
         retry_log_level: :warning
       )
 
-    # Start rate limiter if enabled
-    rate_limiter =
-      if enable_rate_limiter do
-        {:ok, limiter} = RealDebrid.RateLimiter.start_link(max_requests: max_requests_per_minute)
-        limiter
-      else
-        nil
+    # Handle rate limiter configuration
+    {rate_limiter, owns_rate_limiter} =
+      case rate_limiter_opt do
+        # Use existing rate limiter
+        pid when is_pid(pid) ->
+          {pid, false}
+
+        # Create new rate limiter
+        true ->
+          {:ok, limiter} =
+            RealDebrid.RateLimiter.start_link(max_requests: max_requests_per_minute)
+
+          {limiter, true}
+
+        # Disable rate limiter
+        false ->
+          {nil, false}
       end
 
     %__MODULE__{
@@ -102,9 +118,38 @@ defmodule RealDebrid.Client do
       host: host,
       path: path,
       req: req,
-      rate_limiter: rate_limiter
+      rate_limiter: rate_limiter,
+      owns_rate_limiter: owns_rate_limiter
     }
   end
+
+  @doc """
+  Stops the rate limiter if it's owned by this client.
+
+  This is important for resource cleanup when you're done with a client.
+  If the rate limiter is shared (passed as a PID), this does nothing.
+
+  ## Examples
+
+      client = RealDebrid.Client.new("token")
+      # ... use client ...
+      RealDebrid.Client.stop(client)
+
+      # Shared rate limiter is not stopped
+      {:ok, limiter} = RealDebrid.RateLimiter.start_link()
+      client = RealDebrid.Client.new("token", rate_limiter: limiter)
+      RealDebrid.Client.stop(client)  # limiter is still running
+  """
+  @spec stop(t()) :: :ok
+  def stop(%__MODULE__{rate_limiter: limiter, owns_rate_limiter: true}) when is_pid(limiter) do
+    if Process.alive?(limiter) do
+      GenServer.stop(limiter)
+    end
+
+    :ok
+  end
+
+  def stop(%__MODULE__{}), do: :ok
 
   # Determines if a request should be retried (arity-2 version for newer Req)
   @spec should_retry?(Req.Request.t(), Req.Response.t() | Exception.t()) :: boolean()
