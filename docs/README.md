@@ -9,7 +9,7 @@ Add `real_debrid` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:real_debrid, github: "sushydev/real_debrid_go"}
+    {:real_debrid, github: "sushydev/real_debrid_ex"}
   ]
 end
 ```

@@ -4,6 +4,7 @@ defmodule RealDebrid.Api.Traffic do
   """
 
   alias RealDebrid.Client
+  alias RealDebrid.Helpers
 
   @type traffic_entry :: %{
           left: integer(),
@@ -74,8 +75,8 @@ defmodule RealDebrid.Api.Traffic do
   def get_details(%Client{} = client, opts \\ []) do
     params =
       []
-      |> maybe_add_param(:start, Keyword.get(opts, :start))
-      |> maybe_add_param(:end, Keyword.get(opts, :end))
+      |> Helpers.maybe_add_param(:start, Keyword.get(opts, :start))
+      |> Helpers.maybe_add_param(:end, Keyword.get(opts, :end))
       |> Map.new()
 
     case Client.get(client, "/traffic/details", params: params) do
@@ -97,7 +98,4 @@ defmodule RealDebrid.Api.Traffic do
         {:error, reason}
     end
   end
-
-  defp maybe_add_param(params, _key, nil), do: params
-  defp maybe_add_param(params, key, value), do: [{key, value} | params]
 end

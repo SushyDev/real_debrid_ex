@@ -4,6 +4,7 @@ defmodule RealDebrid.Api.Torrents do
   """
 
   alias RealDebrid.Client
+  alias RealDebrid.Helpers
 
   @max_limit 5000
 
@@ -60,9 +61,9 @@ defmodule RealDebrid.Api.Torrents do
 
           total_count =
             headers
-            |> get_header("x-total-count")
+            |> Helpers.get_header("x-total-count")
             |> Enum.at(0)
-            |> parse_integer(0)
+            |> Helpers.parse_integer(0)
 
           {:ok,
            %{
@@ -150,22 +151,4 @@ defmodule RealDebrid.Api.Torrents do
       seeders: body["seeders"]
     }
   end
-
-  defp get_header(headers, key) do
-    case Map.fetch(headers, key) do
-      {:ok, value} -> value
-      :error -> nil
-    end
-  end
-
-  defp parse_integer(nil, default), do: default
-
-  defp parse_integer(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, _} -> int
-      :error -> default
-    end
-  end
-
-  defp parse_integer(value, _default) when is_integer(value), do: value
 end
